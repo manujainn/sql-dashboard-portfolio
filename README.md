@@ -23,3 +23,39 @@ This project simulates an end-to-end Business Intelligence initiative focused on
 ├── dashboards/            # Visual exports, mockups, and dashboard screenshots
 ├── docs/                  # Entity Relationship Diagrams (ERD) & database schema
 └── README.md              # Project documentation
+-- Advanced CTE and Window Function for Tiering High-Value Customers
+WITH CustomerLifetimeValue AS (
+    SELECT 
+        c.customer_id,
+        c.customer_segment,
+        SUM(t.total_amount) AS total_revenue_generated,
+        COUNT(t.transaction_id) AS total_orders,
+        MAX(t.transaction_date) AS last_purchase_date
+    FROM customers c
+    JOIN transactions t ON c.customer_id = t.customer_id
+    GROUP BY c.customer_id, c.customer_segment
+),
+RankedCustomers AS (
+    SELECT 
+        customer_id,
+        customer_segment,
+        total_revenue_generated,
+        total_orders,
+        NTILE(4) OVER (ORDER BY total_revenue_generated DESC) AS revenue_quartile
+    FROM CustomerLifetimeValue
+)
+SELECT 
+    customer_id,
+    customer_segment,
+    total_revenue_generated,
+    total_orders,
+    CASE 
+        WHEN revenue_quartile = 1 THEN 'Tier 1 - VIP'
+        WHEN revenue_quartile = 2 THEN 'Tier 2 - Core'
+        WHEN revenue_quartile = 3 THEN 'Tier 3 - Regular'
+        ELSE 'Tier 4 - Low Engagement'
+    END AS customer_tier
+FROM RankedCustomers
+ORDER BY total_revenue_generated DESC;
+
+
